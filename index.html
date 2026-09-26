@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1024">
+  <meta name="description" content="翔子小姐的每日日语学习来信">
+  <title>翔子小姐的来信 · 日语学习</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230b1024'/%3E%3Ccircle cx='32' cy='32' r='18' fill='%23f2e6c9'/%3E%3Cpath d='M24 18a18 18 0 0 0 0 28 18 18 0 0 1 0-28Z' fill='%230b1024'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="回到翔子小姐的来信首页">
+        <span class="brand-mark" aria-hidden="true">◐</span>
+        <span>
+          <span class="brand-kicker">DAILY JAPANESE LETTERS</span>
+          <span class="brand-name">翔子小姐的来信</span>
+        </span>
+      </a>
+      <div class="header-note"><span class="status-dot" aria-hidden="true"></span><span>网址可跨设备查看<br>进度仅保存在本浏览器</span></div>
+    </header>
+
+    <main class="app-grid">
+      <aside class="inbox-panel" aria-labelledby="inbox-title">
+        <div class="panel-intro">
+          <p class="section-label">INBOX · 收件箱</p>
+          <p class="page-identity">虚构日常 · AI合成语音</p>
+          <h1 id="inbox-title">每日来信档案</h1>
+          <p class="intro-copy">先听她说，再把一句话慢慢读懂。每封信都配好了平假名和生活用语整理。</p>
+        </div>
+        <div id="inbox-list" class="inbox-list" aria-label="信件列表"></div>
+        <div class="privacy-note">
+          <span class="note-seal" aria-hidden="true">私</span>
+          <p><strong>私人学习桌</strong><br>网页可以在不同设备打开；阅读进度只保存在当前浏览器，不连接账号，也不会上传内容。</p>
+        </div>
+      </aside>
+
+      <section class="reader-panel" aria-labelledby="reader-title">
+        <div id="empty-state" class="empty-state">
+          <div class="empty-orbit" aria-hidden="true"><span>月</span></div>
+          <p class="section-label">A LETTER IS WAITING</p>
+          <h2>打开一封信，<br>让她先对你说。</h2>
+          <p>从左侧选择一封信。语音开始后，字幕会随着她的语速逐句出现。</p>
+          <p class="empty-hint">建议戴上耳机，在安静的地方听第一遍。</p>
+        </div>
+
+        <article id="lesson-view" class="lesson-view" hidden>
+          <header class="letter-header">
+            <div class="letter-topline">
+              <span id="lesson-category" class="letter-category"></span>
+              <span id="lesson-date" class="letter-date"></span>
+            </div>
+            <h2 id="reader-title"></h2>
+            <p id="lesson-subtitle" class="letter-subtitle"></p>
+            <div class="recipient-line">
+              <span id="lesson-salutation"></span>
+              <span class="recipient-rule" aria-hidden="true"></span>
+              <span id="lesson-sender"></span>
+            </div>
+          </header>
+
+          <div class="listening-card">
+            <div class="listening-heading">
+              <div>
+                <p class="section-label">LISTEN FIRST · 先听一遍</p>
+                <h3>翔子小姐正在说</h3>
+              </div>
+              <span id="listen-status" class="listen-status" role="status">准备好了</span>
+            </div>
+
+            <div class="subtitle-stage" aria-live="polite" aria-atomic="false">
+              <p id="subtitle-placeholder" class="subtitle-placeholder">点击播放，让第一句话浮现出来。</p>
+              <ol id="subtitle-list" class="subtitle-list" aria-label="按时间出现的日文字幕"></ol>
+            </div>
+
+            <div class="audio-controls" aria-label="音频控制">
+              <div class="progress-row">
+                <span id="elapsed-time" class="time-label">0:00</span>
+                <input id="progress-range" class="progress-range" type="range" min="0" max="100" value="0" step="0.01" aria-label="播放进度">
+                <span id="total-time" class="time-label">0:00</span>
+              </div>
+              <div class="control-row">
+                <button id="back-button" class="control-button quiet" type="button" title="后退 5 秒">↶ <span>5 秒</span></button>
+                <button id="play-button" class="control-button play-button" type="button"><span class="play-icon" aria-hidden="true">▶</span><span class="play-label">播放</span></button>
+                <button id="restart-button" class="control-button quiet" type="button" title="从头重听">重听</button>
+                <label class="loop-control"><input id="loop-checkbox" type="checkbox"><span>当前句循环</span></label>
+                <div class="speed-control" role="group" aria-label="播放速度">
+                  <span>速度</span>
+                  <button type="button" class="speed-button" data-speed="0.75">0.75</button>
+                  <button type="button" class="speed-button is-selected" data-speed="1">1.0</button>
+                  <button type="button" class="speed-button" data-speed="1.1">1.1</button>
+                </div>
+              </div>
+            </div>
+            <audio id="lesson-audio" preload="metadata"></audio>
+          </div>
+
+          <div class="study-invite">
+            <p><span aria-hidden="true">✦</span> 第一遍先听语气，第二遍可以点句子跟着读。</p>
+            <button id="direct-study" class="text-button" type="button">直接学习整理 <span aria-hidden="true">↓</span></button>
+          </div>
+
+          <section id="notes-panel" class="notes-panel" hidden aria-labelledby="notes-title">
+            <div class="notes-heading">
+              <div>
+                <p class="section-label">AFTER LISTENING · 听完之后</p>
+                <h3 id="notes-title">把这封信读懂</h3>
+              </div>
+              <span class="notes-ribbon">学习整理</span>
+            </div>
+
+            <section class="notes-section sentence-notes" aria-labelledby="sentence-notes-title">
+              <div class="notes-section-heading">
+                <h4 id="sentence-notes-title">逐句读</h4>
+                <p>点任意一句，从那里重听并跟读。</p>
+              </div>
+              <div id="sentence-notes-list" class="sentence-notes-list"></div>
+            </section>
+
+            <div class="notes-columns">
+              <section class="notes-section" aria-labelledby="vocabulary-title">
+                <div class="notes-section-heading">
+                  <h4 id="vocabulary-title">词汇</h4>
+                  <p>先记住信里反复会遇到的词。</p>
+                </div>
+                <div id="vocabulary-list" class="study-list"></div>
+              </section>
+              <section class="notes-section" aria-labelledby="expression-title">
+                <div class="notes-section-heading">
+                  <h4 id="expression-title">生活表达</h4>
+                  <p>这些说法可以直接放进日常对话。</p>
+                </div>
+                <div id="expression-list" class="study-list"></div>
+              </section>
+            </div>
+
+            <section class="notes-section grammar-section" aria-labelledby="grammar-title">
+              <div class="notes-section-heading">
+                <h4 id="grammar-title">常用语法</h4>
+                <p>从这封信里带走几个可以活用的句型。</p>
+              </div>
+              <div id="grammar-list" class="grammar-list"></div>
+            </section>
+          </section>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Shoko Japanese Letters</span>
+      <span>虚构日常 · AI合成语音</span>
+      <span>每次只学一句，也已经很好了。</span>
+    </footer>
+  </div>
+  <script src="./lessons.js"></script>
+  <script src="./daily-lessons.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
