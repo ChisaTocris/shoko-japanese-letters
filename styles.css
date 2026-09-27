@@ -675,13 +675,18 @@ a {
 .letter-header h1 {
   position: relative;
   z-index: 1;
-  max-width: 760px;
+  width: 100%;
+  max-width: 100%;
   margin: 18px 0 0;
   color: var(--ink);
-  font-size: clamp(30px, 5vw, 52px);
+  font-size: clamp(30px, 4.4vw, 44px);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.18;
+  letter-spacing: 0.01em;
+  line-height: 1.24;
+  line-break: strict;
+  overflow-wrap: normal;
+  text-wrap: balance;
+  word-break: auto-phrase;
 }
 
 .letter-subtitle {
@@ -1362,7 +1367,9 @@ a {
   }
 
   .letter-header h1 {
-    font-size: 31px;
+    font-size: clamp(27px, 8.2vw, 32px);
+    letter-spacing: 0;
+    line-height: 1.28;
   }
 
   .recipient-line {
