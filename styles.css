@@ -776,13 +776,17 @@ a {
   gap: 5px;
   max-height: 395px;
   margin: 0;
-  padding: 190px 3px;
+  padding: 16px 3px 190px;
   overflow: auto;
   overscroll-behavior: contain;
   list-style: none;
   scrollbar-color: rgba(216, 181, 110, 0.48) transparent;
   scrollbar-width: thin;
   scroll-behavior: auto;
+}
+
+.subtitle-list.has-follow-leading-space {
+  padding-top: 190px;
 }
 
 .subtitle-line {
@@ -1400,7 +1404,11 @@ a {
 
   .subtitle-list {
     max-height: 350px;
-    padding-block: 170px;
+    padding: 14px 3px 170px;
+  }
+
+  .subtitle-list.has-follow-leading-space {
+    padding-top: 170px;
   }
 
   .control-row {

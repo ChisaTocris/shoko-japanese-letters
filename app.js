@@ -383,6 +383,12 @@
     }
   }
 
+  function resetSubtitleLeadingSpace() {
+    if (elements.subtitleList && elements.subtitleList.classList) {
+      elements.subtitleList.classList.remove('has-follow-leading-space');
+    }
+  }
+
   function suspendSubtitleFollowing(pointerHeld) {
     state.following = false;
     if (pointerHeld) {
@@ -478,6 +484,9 @@
     var button = state.subtitleButtons[index];
     if (!list || !button || (!state.following && !force) || typeof list.scrollTop !== 'number') {
       return;
+    }
+    if (list.classList) {
+      list.classList.toggle('has-follow-leading-space', index > 0);
     }
     var target = centerTargetForSubtitle(list, button);
     if (target === null) {
@@ -627,6 +636,7 @@
     elements.audio.src = lesson.audio;
     elements.audio.load();
     if (elements.subtitleList) {
+      resetSubtitleLeadingSpace();
       elements.subtitleList.scrollTop = 0;
     }
     elements.progress.value = '0';
@@ -704,6 +714,7 @@
       elements.view.classList.remove('is-opening', 'is-open');
       elements.view.hidden = true;
     }
+    resetSubtitleLeadingSpace();
     if (elements.readerScreen) {
       elements.readerScreen.hidden = true;
       elements.readerScreen.classList.remove('is-opening', 'is-open');
