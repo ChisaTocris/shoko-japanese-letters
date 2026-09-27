@@ -14,10 +14,7 @@
 
   function formatDateLabel(publishedDate) {
     var match = String(publishedDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) {
-      return '';
-    }
-    return match[1] + '年' + String(Number(match[2])) + '月' + String(Number(match[3])) + '日';
+    return match ? match[1] + '年' + String(Number(match[2])) + '月' + String(Number(match[3])) + '日' : '';
   }
 
   function normalizeLesson(lesson) {
@@ -40,13 +37,16 @@
     }
     return String(right.id || '').localeCompare(String(left.id || ''));
   });
+
   var storageKeys = {
     read: 'shoko-japanese-letters.read.v1',
     last: 'shoko-japanese-letters.last.v1'
   };
   var elements = {
+    mailbox: document.getElementById('mailbox-screen'),
     inbox: document.getElementById('inbox-list'),
     empty: document.getElementById('empty-state'),
+    readerScreen: document.getElementById('reader-screen'),
     view: document.getElementById('lesson-view'),
     category: document.getElementById('lesson-category'),
     date: document.getElementById('lesson-date'),
@@ -62,6 +62,7 @@
     total: document.getElementById('total-time'),
     progress: document.getElementById('progress-range'),
     back: document.getElementById('back-button'),
+    backToInbox: document.getElementById('back-to-letters'),
     play: document.getElementById('play-button'),
     playIcon: document.querySelector('#play-button .play-icon'),
     playLabel: document.querySelector('#play-button .play-label'),
@@ -81,9 +82,18 @@
     activeIndex: 0,
     segmentIndex: null,
     hasStarted: false,
-    lastScrolledIndex: null,
+    singleSentenceEnded: false,
     subtitleButtons: [],
-    sentenceButtons: []
+    sentenceButtons: [],
+    following: true,
+    pointerHeld: false,
+    followTimer: null,
+    followGeneration: 0,
+    resizeFrame: null,
+    programmaticScrollUntil: 0,
+    cancellingScroll: false,
+    openingTimer: null,
+    openingGeneration: 0
   };
 
   function readJson(key, fallback) {
@@ -132,33 +142,48 @@
   }
 
   function renderInbox() {
+    if (!elements.inbox) {
+      return;
+    }
     elements.inbox.replaceChildren();
     lessons.forEach(function (lesson) {
       var card = document.createElement('button');
       card.type = 'button';
-      card.className = 'inbox-card' + (state.lesson && state.lesson.id === lesson.id ? ' is-selected' : '');
+      card.className = 'inbox-card';
       card.dataset.lessonId = lesson.id;
       card.setAttribute('aria-label', '打开' + lesson.title);
 
+      var envelope = document.createElement('span');
+      envelope.className = 'envelope-art';
+      envelope.setAttribute('aria-hidden', 'true');
+      envelope.appendChild(textNode('span', 'envelope-paper', '信'));
+      envelope.appendChild(textNode('span', 'envelope-flap', ''));
+      envelope.appendChild(textNode('span', 'envelope-fold', ''));
+      card.appendChild(envelope);
+
+      var content = document.createElement('span');
+      content.className = 'inbox-card-content';
       var top = document.createElement('span');
       top.className = 'inbox-card-top';
       top.appendChild(textNode('span', 'inbox-card-category', lesson.category));
       top.appendChild(textNode('span', 'inbox-card-date', lesson.date));
-      card.appendChild(top);
-      card.appendChild(textNode('span', 'inbox-card-title', lesson.title));
-      card.appendChild(textNode('span', 'inbox-card-subtitle', lesson.subtitle));
-
+      content.appendChild(top);
+      content.appendChild(textNode('span', 'inbox-card-title', lesson.title));
+      content.appendChild(textNode('span', 'inbox-card-subtitle', lesson.subtitle));
       var bottom = document.createElement('span');
       bottom.className = 'inbox-card-bottom';
-      bottom.appendChild(textNode('span', 'inbox-card-status', isRead(lesson.id) ? '已听完 · 可复习' : '未读'));
       bottom.appendChild(textNode('span', 'inbox-card-duration', formatTime(lesson.duration)));
-      bottom.appendChild(textNode('span', 'inbox-card-arrow', '→'));
-      card.appendChild(bottom);
+      bottom.appendChild(textNode('span', 'inbox-card-arrow', '↗'));
+      content.appendChild(bottom);
+      card.appendChild(content);
       card.addEventListener('click', function () {
         openLesson(lesson.id, false);
       });
       elements.inbox.appendChild(card);
     });
+    if (elements.empty) {
+      elements.empty.hidden = lessons.length > 0;
+    }
   }
 
   function findLesson(id) {
@@ -182,6 +207,7 @@
         button.appendChild(textNode('span', 'subtitle-kana', sentence.kana));
       }
       button.addEventListener('click', function () {
+        suspendSubtitleFollowing(false);
         playSegment(index);
       });
       listItem.appendChild(button);
@@ -200,7 +226,6 @@
       button.dataset.index = String(index);
       button.setAttribute('aria-label', '重听第' + (index + 1) + '句');
       button.appendChild(textNode('span', 'sentence-number', String(index + 1).padStart(2, '0')));
-
       var content = document.createElement('span');
       content.appendChild(textNode('span', 'sentence-note-ja', sentence.ja));
       if (sentence.kana) {
@@ -210,6 +235,7 @@
       button.appendChild(content);
       button.appendChild(textNode('span', 'sentence-replay', '↗'));
       button.addEventListener('click', function () {
+        suspendSubtitleFollowing(false);
         playSegment(index);
       });
       elements.sentenceNotes.appendChild(button);
@@ -284,6 +310,14 @@
   function setStatus(message, playing) {
     elements.status.textContent = message;
     elements.status.classList.toggle('is-playing', Boolean(playing));
+    elements.status.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    if (playing) {
+      elements.status.setAttribute('aria-label', state.segmentIndex === null ? '暂停连续播放' : '切换为连续播放');
+    } else if (state.singleSentenceEnded) {
+      elements.status.setAttribute('aria-label', '继续连续播放');
+    } else {
+      elements.status.setAttribute('aria-label', '开始连续播放');
+    }
   }
 
   function setPlayingUi(playing) {
@@ -291,62 +325,195 @@
     elements.playLabel.textContent = playing ? '暂停' : '播放';
     elements.play.setAttribute('aria-label', playing ? '暂停播放' : '播放');
     if (playing) {
-      setStatus('正在播放', true);
+      setStatus(state.segmentIndex === null ? '正在连续播放' : '正在播放单句', true);
     } else if (!elements.audio.ended) {
-      setStatus(state.hasStarted ? '已暂停' : '准备好了', false);
-    }
-  }
-
-  function openLesson(id, autoplay) {
-    var lesson = findLesson(id);
-    if (!lesson) {
-      return;
-    }
-
-    if (state.lesson && state.lesson.id !== lesson.id) {
-      elements.audio.pause();
-    }
-    state.lesson = lesson;
-    state.activeIndex = 0;
-    state.segmentIndex = null;
-    state.hasStarted = false;
-    state.lastScrolledIndex = null;
-    elements.audio.pause();
-    elements.audio.src = lesson.audio;
-    elements.audio.load();
-    elements.progress.value = '0';
-    elements.progress.max = String(lesson.duration);
-    elements.elapsed.textContent = '0:00';
-    elements.total.textContent = formatTime(lesson.duration);
-    elements.category.textContent = lesson.category;
-    elements.date.textContent = lesson.date;
-    elements.title.textContent = lesson.title;
-    elements.subtitle.textContent = lesson.subtitle;
-    elements.salutation.textContent = lesson.salutation;
-    elements.sender.textContent = lesson.sender;
-    renderSubtitleLines(lesson);
-    renderNotes(lesson);
-    updateSubtitle(0);
-    setPlayingUi(false);
-    setNotesVisible(isRead(lesson.id));
-    elements.empty.hidden = true;
-    elements.view.hidden = false;
-    saveJson(storageKeys.last, lesson.id);
-    renderInbox();
-    elements.view.scrollIntoView({ behavior: getScrollBehavior(), block: 'start' });
-    if (autoplay === true) {
-      state.hasStarted = true;
-      updateSubtitle(0);
-      elements.audio.play().catch(function () {
-        state.hasStarted = false;
-        updateSubtitle(0);
-        setStatus('点击播放，让她开始读信', false);
-      });
+      setStatus(state.singleSentenceEnded ? '这一句听完了 · 点击继续' : (state.hasStarted ? '已暂停' : '准备好了'), false);
     }
   }
 
   function getScrollBehavior() {
     return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
+
+  function clearFollowTimer() {
+    if (state.followTimer !== null && typeof window.clearTimeout === 'function') {
+      window.clearTimeout(state.followTimer);
+    }
+    state.followTimer = null;
+  }
+
+  function scheduleFollowResume() {
+    clearFollowTimer();
+    var generation = state.followGeneration;
+    if (typeof window.setTimeout !== 'function') {
+      if (!state.pointerHeld && state.lesson && generation === state.followGeneration) {
+        state.following = true;
+      }
+      return;
+    }
+    state.followTimer = window.setTimeout(function () {
+      state.followTimer = null;
+      if (!state.lesson || generation !== state.followGeneration || state.pointerHeld) {
+        return;
+      }
+      state.following = true;
+      scrollSubtitleIntoView(state.activeIndex, true);
+    }, 3000);
+  }
+
+  function cancelProgrammaticSubtitleScroll() {
+    state.programmaticScrollUntil = 0;
+    var list = elements.subtitleList;
+    if (list && typeof list.scrollTo === 'function') {
+      state.cancellingScroll = true;
+      try {
+        list.scrollTo({ top: Number(list.scrollTop) || 0, behavior: 'auto' });
+      } catch (error) {
+        try {
+          list.scrollTo(0, Number(list.scrollTop) || 0);
+        } catch (ignored) {
+          // The current scroll position is still safe to leave in place.
+        }
+      }
+      state.cancellingScroll = false;
+    }
+  }
+
+  function suspendSubtitleFollowing(pointerHeld) {
+    state.following = false;
+    if (pointerHeld) {
+      state.pointerHeld = true;
+    }
+    cancelProgrammaticSubtitleScroll();
+    scheduleFollowResume();
+  }
+
+  function releaseSubtitlePointer() {
+    state.pointerHeld = false;
+    scheduleFollowResume();
+  }
+
+  function isScrollKey(key) {
+    return ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].indexOf(key) !== -1;
+  }
+
+  function handleSubtitleScroll() {
+    if (!elements.subtitleList || state.cancellingScroll || Date.now() <= state.programmaticScrollUntil) {
+      return;
+    }
+    suspendSubtitleFollowing(state.pointerHeld);
+  }
+
+  function bindSubtitleInteraction() {
+    var list = elements.subtitleList;
+    if (!list) {
+      return;
+    }
+    list.addEventListener('wheel', function () {
+      suspendSubtitleFollowing(false);
+    }, { passive: true });
+    list.addEventListener('touchstart', function () {
+      suspendSubtitleFollowing(true);
+    }, { passive: true });
+    list.addEventListener('touchmove', function () {
+      suspendSubtitleFollowing(true);
+    }, { passive: true });
+    list.addEventListener('touchend', releaseSubtitlePointer, { passive: true });
+    list.addEventListener('touchcancel', releaseSubtitlePointer, { passive: true });
+    list.addEventListener('pointerdown', function () {
+      suspendSubtitleFollowing(true);
+    });
+    list.addEventListener('pointermove', function () {
+      if (state.pointerHeld) {
+        suspendSubtitleFollowing(true);
+      }
+    });
+    list.addEventListener('pointerup', releaseSubtitlePointer);
+    list.addEventListener('pointercancel', releaseSubtitlePointer);
+    list.addEventListener('keydown', function (event) {
+      if (isScrollKey(event.key)) {
+        suspendSubtitleFollowing(false);
+      }
+    });
+    list.addEventListener('scroll', handleSubtitleScroll, { passive: true });
+    if (typeof window.addEventListener === 'function') {
+      // A scrollbar drag can end outside the list. Release the hold globally so
+      // a lost pointer cannot leave follow mode suspended forever.
+      window.addEventListener('pointerup', releaseSubtitlePointer);
+      window.addEventListener('pointercancel', releaseSubtitlePointer);
+      window.addEventListener('touchend', releaseSubtitlePointer, { passive: true });
+      window.addEventListener('touchcancel', releaseSubtitlePointer, { passive: true });
+      window.addEventListener('blur', releaseSubtitlePointer);
+    }
+  }
+
+  function centerTargetForSubtitle(list, button) {
+    if (!list || !button || typeof list.getBoundingClientRect !== 'function' || typeof button.getBoundingClientRect !== 'function') {
+      return null;
+    }
+    var listRect = list.getBoundingClientRect();
+    var buttonRect = button.getBoundingClientRect();
+    var height = Number(list.clientHeight) || Number(listRect.height) || 0;
+    var buttonHeight = Number(buttonRect.height) || Number(button.offsetHeight) || 0;
+    if (!height) {
+      return null;
+    }
+    var current = Number(list.scrollTop) || 0;
+    var relativeTop = Number(buttonRect.top) - Number(listRect.top);
+    var target = current + relativeTop - ((height - buttonHeight) / 2);
+    var scrollHeight = Number(list.scrollHeight);
+    if (!Number.isFinite(scrollHeight) || scrollHeight <= 0) {
+      scrollHeight = current + relativeTop + buttonHeight;
+    }
+    var maxScroll = Math.max(0, scrollHeight - height);
+    return Math.max(0, Math.min(maxScroll, target));
+  }
+
+  function scrollSubtitleIntoView(index, force) {
+    var list = elements.subtitleList;
+    var button = state.subtitleButtons[index];
+    if (!list || !button || (!state.following && !force) || typeof list.scrollTop !== 'number') {
+      return;
+    }
+    var target = centerTargetForSubtitle(list, button);
+    if (target === null) {
+      return;
+    }
+    state.programmaticScrollUntil = Date.now() + (getScrollBehavior() === 'smooth' ? 900 : 80);
+    if (typeof list.scrollTo === 'function') {
+      try {
+        list.scrollTo({ top: target, behavior: getScrollBehavior() });
+      } catch (error) {
+        try {
+          list.scrollTo(0, target);
+        } catch (ignored) {
+          list.scrollTop = target;
+        }
+      }
+    } else {
+      list.scrollTop = target;
+    }
+  }
+
+  function queueResizeFollow() {
+    if (!state.lesson || !state.following) {
+      return;
+    }
+    var generation = state.followGeneration;
+    if (typeof window.cancelAnimationFrame === 'function' && state.resizeFrame !== null) {
+      window.cancelAnimationFrame(state.resizeFrame);
+    }
+    var refresh = function () {
+      state.resizeFrame = null;
+      if (state.lesson && generation === state.followGeneration && state.following && !state.pointerHeld) {
+        scrollSubtitleIntoView(state.activeIndex, true);
+      }
+    };
+    if (typeof window.requestAnimationFrame === 'function') {
+      state.resizeFrame = window.requestAnimationFrame(refresh);
+    } else {
+      refresh();
+    }
   }
 
   function getActiveIndex(currentTime) {
@@ -370,7 +537,7 @@
     return 0;
   }
 
-  function updateSubtitle(currentTime) {
+  function updateSubtitle(currentTime, forceScroll) {
     if (!state.lesson) {
       return;
     }
@@ -390,32 +557,9 @@
       button.classList.toggle('is-playing', index === activeIndex && state.segmentIndex !== null);
     });
     elements.placeholder.classList.toggle('is-hidden', state.hasStarted);
-    if (state.hasStarted && activeIndex !== previousIndex) {
-      scrollSubtitleIntoView(activeIndex);
+    if (state.hasStarted && (activeIndex !== previousIndex || forceScroll)) {
+      scrollSubtitleIntoView(activeIndex, Boolean(forceScroll));
     }
-  }
-
-  function scrollSubtitleIntoView(index) {
-    var list = elements.subtitleList;
-    var button = state.subtitleButtons[index];
-    if (!list || !button || typeof list.scrollTop !== 'number') {
-      return;
-    }
-    var top = 0;
-    var current = button;
-    while (current && current !== list) {
-      top += Number(current.offsetTop) || 0;
-      current = current.offsetParent || current.parentNode;
-    }
-    var bottom = top + button.offsetHeight;
-    var visibleTop = list.scrollTop;
-    var visibleBottom = visibleTop + list.clientHeight;
-    if (top < visibleTop) {
-      list.scrollTop = Math.max(0, top - 12);
-    } else if (bottom > visibleBottom) {
-      list.scrollTop = Math.max(0, bottom - list.clientHeight + 12);
-    }
-    state.lastScrolledIndex = index;
   }
 
   function updateProgress() {
@@ -427,18 +571,174 @@
     elements.total.textContent = formatTime(duration);
   }
 
+  function focusNode(node) {
+    if (node && typeof node.focus === 'function') {
+      node.focus();
+    }
+  }
+
+  function clearOpeningTimer() {
+    if (state.openingTimer !== null && typeof window.clearTimeout === 'function') {
+      window.clearTimeout(state.openingTimer);
+    }
+    state.openingTimer = null;
+  }
+
+  function finishOpening(generation) {
+    if (!state.lesson || generation !== state.openingGeneration || !elements.view) {
+      return;
+    }
+    elements.view.classList.remove('is-opening');
+    elements.view.classList.add('is-open');
+    elements.view.hidden = false;
+    if (elements.readerScreen) {
+      elements.readerScreen.classList.remove('is-opening');
+      elements.readerScreen.classList.add('is-open');
+    }
+    state.openingTimer = null;
+    focusNode(elements.backToInbox || elements.play);
+  }
+
+  function openLesson(id, autoplay) {
+    var lesson = findLesson(id);
+    if (!lesson) {
+      return;
+    }
+    clearOpeningTimer();
+    state.openingGeneration += 1;
+    var generation = state.openingGeneration;
+    clearFollowTimer();
+    state.followGeneration += 1;
+    state.pointerHeld = false;
+    state.following = true;
+    if (state.lesson && state.lesson.id !== lesson.id) {
+      elements.audio.pause();
+    }
+    state.lesson = lesson;
+    state.activeIndex = 0;
+    state.segmentIndex = null;
+    state.hasStarted = false;
+    state.singleSentenceEnded = false;
+    elements.audio.pause();
+    elements.audio.src = lesson.audio;
+    elements.audio.load();
+    if (elements.subtitleList) {
+      elements.subtitleList.scrollTop = 0;
+    }
+    elements.progress.value = '0';
+    elements.progress.max = String(lesson.duration);
+    elements.elapsed.textContent = '0:00';
+    elements.total.textContent = formatTime(lesson.duration);
+    elements.category.textContent = lesson.category;
+    elements.date.textContent = lesson.date;
+    elements.title.textContent = lesson.title;
+    elements.subtitle.textContent = lesson.subtitle;
+    elements.salutation.textContent = lesson.salutation;
+    elements.sender.textContent = lesson.sender;
+    renderSubtitleLines(lesson);
+    renderNotes(lesson);
+    updateSubtitle(0);
+    setPlayingUi(false);
+    setNotesVisible(isRead(lesson.id));
+    if (elements.empty) {
+      elements.empty.hidden = true;
+    }
+    if (elements.mailbox) {
+      elements.mailbox.hidden = true;
+    }
+    if (elements.readerScreen) {
+      elements.readerScreen.hidden = false;
+      elements.readerScreen.classList.remove('is-open', 'is-opening');
+      // Reading offsetWidth restarts the envelope/flap sequence for a second
+      // rapid click without allowing an earlier lesson's animation to finish.
+      void elements.readerScreen.offsetWidth;
+      elements.readerScreen.classList.add('is-opening');
+    }
+    // Mount the reader beneath the envelope overlay so the expanding paper can
+    // crossfade into the actual full reading surface instead of popping in
+    // after the overlay disappears.
+    elements.view.hidden = false;
+    elements.view.classList.remove('is-open');
+    elements.view.classList.add('is-opening');
+    if (document.body && document.body.classList) {
+      document.body.classList.add('reader-is-open');
+    }
+    saveJson(storageKeys.last, lesson.id);
+    renderInbox();
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var duration = reduced ? 40 : 1000;
+    if (typeof window.setTimeout !== 'function') {
+      finishOpening(generation);
+    } else {
+      state.openingTimer = window.setTimeout(function () {
+        finishOpening(generation);
+      }, duration);
+    }
+    if (autoplay === true) {
+      state.hasStarted = true;
+      updateSubtitle(0, true);
+      safePlay('点击播放，让她开始读信');
+    }
+  }
+
+  function closeLesson() {
+    clearOpeningTimer();
+    clearFollowTimer();
+    state.openingGeneration += 1;
+    state.followGeneration += 1;
+    state.pointerHeld = false;
+    state.following = true;
+    elements.audio.pause();
+    state.lesson = null;
+    state.segmentIndex = null;
+    state.singleSentenceEnded = false;
+    state.hasStarted = false;
+    if (elements.view) {
+      elements.view.classList.remove('is-opening', 'is-open');
+      elements.view.hidden = true;
+    }
+    if (elements.readerScreen) {
+      elements.readerScreen.hidden = true;
+      elements.readerScreen.classList.remove('is-opening', 'is-open');
+    }
+    if (elements.mailbox) {
+      elements.mailbox.hidden = false;
+    }
+    if (document.body && document.body.classList) {
+      document.body.classList.remove('reader-is-open');
+    }
+    renderInbox();
+    focusNode(elements.inbox && elements.inbox.children[0]);
+  }
+
+  function safePlay(failureMessage) {
+    var result;
+    try {
+      result = elements.audio.play();
+    } catch (error) {
+      result = Promise.reject(error);
+    }
+    if (result && typeof result.catch === 'function') {
+      result.catch(function () {
+        state.hasStarted = false;
+        setPlayingUi(false);
+        setStatus(failureMessage || '请点击播放开始听信', false);
+      });
+    }
+    return result;
+  }
+
   function playSegment(index) {
     if (!state.lesson || !state.lesson.sentences[index]) {
       return;
     }
     var sentence = state.lesson.sentences[index];
     state.segmentIndex = index;
+    state.singleSentenceEnded = false;
     state.hasStarted = true;
     elements.audio.currentTime = sentence.start;
-    updateSubtitle(sentence.start);
-    elements.audio.play().catch(function () {
-      setStatus('请再点击一次播放', false);
-    });
+    updateSubtitle(sentence.start, true);
+    safePlay('请再点击一次播放');
   }
 
   function togglePlayback() {
@@ -448,17 +748,59 @@
     if (elements.audio.ended || elements.audio.currentTime >= state.lesson.duration - 0.05) {
       elements.audio.currentTime = 0;
       state.segmentIndex = null;
-      state.hasStarted = false;
-      updateSubtitle(0);
+      state.singleSentenceEnded = false;
+      state.hasStarted = true;
+      updateSubtitle(0, true);
     }
     if (elements.audio.paused) {
       state.hasStarted = true;
-      elements.audio.play().catch(function () {
-        setStatus('请点击播放开始听信', false);
-      });
+      state.singleSentenceEnded = false;
+      updateSubtitle(elements.audio.currentTime, true);
+      safePlay('请点击播放开始听信');
     } else {
       elements.audio.pause();
     }
+  }
+
+  function toggleListenStatus() {
+    if (!state.lesson) {
+      return;
+    }
+    if (elements.audio.ended || elements.audio.currentTime >= state.lesson.duration - 0.05) {
+      elements.audio.currentTime = 0;
+      state.segmentIndex = null;
+      state.singleSentenceEnded = false;
+      state.hasStarted = true;
+      elements.loop.checked = false;
+      updateSubtitle(0, true);
+      safePlay('请点击播放开始听信');
+      return;
+    }
+    if (state.segmentIndex !== null || state.singleSentenceEnded) {
+      state.segmentIndex = null;
+      state.singleSentenceEnded = false;
+      elements.loop.checked = false;
+      state.hasStarted = true;
+      updateSubtitle(elements.audio.currentTime, true);
+      if (elements.audio.paused) {
+        safePlay('请再点击一次播放');
+      } else {
+        setPlayingUi(true);
+      }
+      return;
+    }
+    if (!elements.audio.paused) {
+      elements.audio.pause();
+      return;
+    }
+    // A paused status click always enters continuous mode, even if a timing
+    // gap left the checkbox checked before a segment index was recorded.
+    state.segmentIndex = null;
+    state.singleSentenceEnded = false;
+    elements.loop.checked = false;
+    state.hasStarted = true;
+    updateSubtitle(elements.audio.currentTime, true);
+    safePlay('请点击播放开始听信');
   }
 
   function restartLesson() {
@@ -468,25 +810,27 @@
     elements.audio.pause();
     elements.audio.currentTime = 0;
     state.segmentIndex = null;
+    state.singleSentenceEnded = false;
     state.hasStarted = false;
+    elements.loop.checked = false;
     setStatus('准备好了', false);
     updateProgress();
-    updateSubtitle(0);
+    updateSubtitle(0, true);
   }
 
   function restartSegment(sentence) {
     elements.audio.currentTime = sentence.start;
     state.hasStarted = true;
-    updateSubtitle(sentence.start);
-    elements.audio.play().catch(function () {
-      setStatus('请点击播放开始循环', false);
-    });
+    state.singleSentenceEnded = false;
+    updateSubtitle(sentence.start, false);
+    safePlay('请点击播放开始循环');
   }
 
   function handleLoopChange() {
     if (!state.lesson) {
       return;
     }
+    state.singleSentenceEnded = false;
     if (elements.loop.checked) {
       if (state.segmentIndex === null) {
         var currentTime = Number.isFinite(elements.audio.currentTime) ? elements.audio.currentTime : 0;
@@ -498,7 +842,7 @@
     } else {
       state.segmentIndex = null;
     }
-    updateSubtitle(Number.isFinite(elements.audio.currentTime) ? elements.audio.currentTime : 0);
+    updateSubtitle(Number.isFinite(elements.audio.currentTime) ? elements.audio.currentTime : 0, true);
   }
 
   function handleTimeUpdate() {
@@ -518,7 +862,7 @@
       return;
     }
     var sentence = state.lesson.sentences[state.segmentIndex];
-    if (elements.audio.currentTime < sentence.end) {
+    if (!sentence || elements.audio.currentTime < sentence.end) {
       return;
     }
     if (elements.loop.checked) {
@@ -526,12 +870,13 @@
       return;
     }
     state.segmentIndex = null;
+    state.singleSentenceEnded = true;
     elements.audio.pause();
     elements.audio.currentTime = sentence.end;
     updateProgress();
-    updateSubtitle(sentence.end);
+    updateSubtitle(sentence.end, false);
     setPlayingUi(false);
-    setStatus('这一句听完了 · 可以继续', false);
+    setStatus('这一句听完了 · 点击继续', false);
   }
 
   function handleEnded() {
@@ -543,19 +888,21 @@
     if (state.segmentIndex !== null) {
       var completedSentence = state.lesson.sentences[state.segmentIndex];
       state.segmentIndex = null;
+      state.singleSentenceEnded = true;
       elements.audio.currentTime = completedSentence.end;
       setPlayingUi(false);
-      setStatus('这一句听完了 · 可以继续', false);
+      setStatus('这一句听完了 · 点击继续', false);
       updateProgress();
-      updateSubtitle(completedSentence.end);
+      updateSubtitle(completedSentence.end, false);
       return;
     }
     state.segmentIndex = null;
+    state.singleSentenceEnded = false;
     state.hasStarted = true;
     setPlayingUi(false);
     setStatus('听完了 · 可以开始整理', false);
     updateProgress();
-    updateSubtitle(state.lesson.duration);
+    updateSubtitle(state.lesson.duration, false);
     setNotesVisible(true);
     markRead(state.lesson.id);
   }
@@ -577,22 +924,32 @@
   }
 
   elements.play.addEventListener('click', togglePlayback);
+  elements.status.addEventListener('click', toggleListenStatus);
   elements.back.addEventListener('click', function () {
     if (!state.lesson) {
       return;
     }
     state.segmentIndex = null;
+    state.singleSentenceEnded = false;
+    elements.loop.checked = false;
     elements.audio.currentTime = Math.max(0, elements.audio.currentTime - 5);
+    state.hasStarted = true;
     updateProgress();
-    updateSubtitle(elements.audio.currentTime);
+    updateSubtitle(elements.audio.currentTime, true);
   });
+  if (elements.backToInbox) {
+    elements.backToInbox.addEventListener('click', closeLesson);
+  }
   elements.restart.addEventListener('click', restartLesson);
   elements.loop.addEventListener('change', handleLoopChange);
   elements.progress.addEventListener('input', function () {
+    suspendSubtitleFollowing(false);
     state.segmentIndex = null;
+    state.singleSentenceEnded = false;
+    elements.loop.checked = false;
     state.hasStarted = true;
     elements.audio.currentTime = Number(elements.progress.value);
-    updateSubtitle(elements.audio.currentTime);
+    updateSubtitle(elements.audio.currentTime, true);
   });
   elements.directStudy.addEventListener('click', function () {
     setNotesVisible(true);
@@ -613,15 +970,25 @@
   elements.audio.addEventListener('loadedmetadata', handleLoadedMetadata);
   elements.audio.addEventListener('ended', handleEnded);
   elements.audio.addEventListener('error', function () {
+    state.hasStarted = false;
+    setPlayingUi(false);
     setStatus('暂时找不到这封信的语音', false);
   });
+  bindSubtitleInteraction();
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('resize', queueResizeFollow);
+  }
 
   setSpeed('1');
   renderInbox();
-  var initialLesson = lessons.find(function (lesson) {
-    return !isRead(lesson.id);
-  }) || lessons[0];
-  if (initialLesson) {
-    openLesson(initialLesson.id, false);
+  // The initial view is intentionally a mailbox. Opening a lesson is an explicit action.
+  if (elements.mailbox) {
+    elements.mailbox.hidden = false;
+  }
+  if (elements.readerScreen) {
+    elements.readerScreen.hidden = true;
+  }
+  if (elements.view) {
+    elements.view.hidden = true;
   }
 })();
