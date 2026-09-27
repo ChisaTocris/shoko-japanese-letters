@@ -4,10 +4,11 @@
   --night-850: #111b3a;
   --night-700: #27365f;
   --ink: #1b2742;
-  --ink-soft: #5c6980;
+  --ink-soft: #526078;
   --paper: #f6efdD;
   --paper-light: #fffaf0;
   --paper-deep: #e8ddc5;
+  --paper-reading: #ded8e4;
   --gold: #cba866;
   --gold-bright: #f2d18c;
   --night-text: #e8e2ef;
@@ -621,7 +622,7 @@ a {
   border: 1px solid rgba(240, 221, 174, 0.22);
   border-radius: 28px;
   color: var(--ink);
-  background: var(--paper-light);
+  background: var(--paper-reading);
   box-shadow: var(--shadow);
   transform-origin: 50% 0;
 }
@@ -645,7 +646,7 @@ a {
   position: relative;
   overflow: hidden;
   padding: clamp(30px, 6vw, 70px) clamp(24px, 8vw, 90px) 44px;
-  background: linear-gradient(130deg, rgba(255, 250, 240, 0.99), rgba(234, 224, 202, 0.95));
+  background: var(--paper-reading);
 }
 
 .letter-header::after {
@@ -961,7 +962,7 @@ a {
   padding: 15px clamp(24px, 8vw, 90px);
   border-bottom: 1px solid var(--line-dark);
   color: var(--ink-soft);
-  background: var(--paper-light);
+  background: var(--paper-reading);
   font-size: 13px;
 }
 
@@ -990,7 +991,7 @@ a {
 
 .notes-panel {
   padding: 45px clamp(24px, 8vw, 90px) 72px;
-  background: var(--paper-light);
+  background: var(--paper-reading);
   animation: notes-in 480ms ease both;
 }
 
