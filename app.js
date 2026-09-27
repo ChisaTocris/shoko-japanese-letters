@@ -125,10 +125,14 @@
     renderInbox();
   }
 
-  function textNode(tag, className, text) {
+  function textNode(tag, className, text, lang) {
     var node = document.createElement(tag);
     if (className) {
       node.className = className;
+    }
+    if (lang) {
+      node.lang = lang;
+      node.setAttribute('lang', lang);
     }
     node.textContent = text == null ? '' : text;
     return node;
@@ -202,9 +206,9 @@
       button.className = 'subtitle-line';
       button.dataset.index = String(index);
       button.setAttribute('aria-label', '从第' + (index + 1) + '句开始播放');
-      button.appendChild(textNode('span', 'subtitle-ja', sentence.ja));
+      button.appendChild(textNode('span', 'subtitle-ja', sentence.ja, 'ja'));
       if (sentence.kana) {
-        button.appendChild(textNode('span', 'subtitle-kana', sentence.kana));
+        button.appendChild(textNode('span', 'subtitle-kana', sentence.kana, 'ja'));
       }
       button.addEventListener('click', function () {
         suspendSubtitleFollowing(false);
@@ -227,9 +231,9 @@
       button.setAttribute('aria-label', '重听第' + (index + 1) + '句');
       button.appendChild(textNode('span', 'sentence-number', String(index + 1).padStart(2, '0')));
       var content = document.createElement('span');
-      content.appendChild(textNode('span', 'sentence-note-ja', sentence.ja));
+      content.appendChild(textNode('span', 'sentence-note-ja', sentence.ja, 'ja'));
       if (sentence.kana) {
-        content.appendChild(textNode('span', 'sentence-note-kana', sentence.kana));
+        content.appendChild(textNode('span', 'sentence-note-kana', sentence.kana, 'ja'));
       }
       content.appendChild(textNode('span', 'sentence-note-zh', sentence.zh));
       button.appendChild(content);
@@ -250,12 +254,12 @@
       article.className = 'study-item';
       var main = document.createElement('div');
       main.className = 'study-main';
-      main.appendChild(textNode('span', 'study-term', item.term));
-      main.appendChild(textNode('span', 'study-reading', item.reading));
+      main.appendChild(textNode('span', 'study-term', item.term, 'ja'));
+      main.appendChild(textNode('span', 'study-reading', item.reading, 'ja'));
       article.appendChild(main);
       article.appendChild(textNode('p', 'study-meaning', item.meaning));
       if (item.example) {
-        article.appendChild(textNode('p', 'study-example', item.example));
+        article.appendChild(textNode('p', 'study-example', item.example, 'ja'));
       }
       elements.vocabulary.appendChild(article);
     });
@@ -268,9 +272,9 @@
       article.className = 'study-item';
       var main = document.createElement('div');
       main.className = 'study-main';
-      main.appendChild(textNode('span', 'study-term', item.ja));
+      main.appendChild(textNode('span', 'study-term', item.ja, 'ja'));
       article.appendChild(main);
-      article.appendChild(textNode('p', 'study-reading', item.kana));
+      article.appendChild(textNode('p', 'study-reading', item.kana, 'ja'));
       article.appendChild(textNode('p', 'study-meaning', item.meaning));
       if (item.note) {
         article.appendChild(textNode('p', 'study-note', item.note));
@@ -284,11 +288,11 @@
     lesson.grammar.forEach(function (item) {
       var article = document.createElement('article');
       article.className = 'grammar-item';
-      article.appendChild(textNode('div', 'grammar-pattern', item.pattern));
+      article.appendChild(textNode('div', 'grammar-pattern', item.pattern, 'ja'));
       article.appendChild(textNode('p', 'grammar-meaning', item.meaning));
-      article.appendChild(textNode('p', 'grammar-example', item.example));
+      article.appendChild(textNode('p', 'grammar-example', item.example, 'ja'));
       if (item.kana) {
-        article.appendChild(textNode('p', 'grammar-kana', item.kana));
+        article.appendChild(textNode('p', 'grammar-kana', item.kana, 'ja'));
       }
       article.appendChild(textNode('p', 'grammar-translation', item.translation));
       elements.grammar.appendChild(article);
@@ -635,6 +639,9 @@
     elements.subtitle.textContent = lesson.subtitle;
     elements.salutation.textContent = lesson.salutation;
     elements.sender.textContent = lesson.sender;
+    elements.sender.lang = 'ja';
+    elements.sender.setAttribute('lang', 'ja');
+    elements.sender.classList.add('ja-text');
     renderSubtitleLines(lesson);
     renderNotes(lesson);
     updateSubtitle(0);

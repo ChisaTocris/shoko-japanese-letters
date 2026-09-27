@@ -14,7 +14,10 @@
   --line: rgba(240, 221, 174, 0.16);
   --line-dark: rgba(27, 39, 66, 0.14);
   --shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
-  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+  --font-zh: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Segoe UI", system-ui, sans-serif;
+  --font-ja: "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", "Noto Sans JP", "Source Han Sans JP", sans-serif;
+  font-family: var(--font-zh);
+  font-weight: 400;
   font-synthesis: none;
 }
 
@@ -33,6 +36,8 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--paper);
+  font-family: var(--font-zh);
+  font-weight: 400;
   background:
     radial-gradient(circle at 78% -12%, rgba(70, 92, 150, 0.27), transparent 38rem),
     radial-gradient(circle at 6% 52%, rgba(79, 57, 118, 0.16), transparent 32rem),
@@ -69,6 +74,29 @@ a {
 
 [hidden] {
   display: none !important;
+}
+
+/* Data text carries its own language so CJK fallback never makes Chinese UI
+   glyphs borrow a Japanese face. */
+[lang="ja"] {
+  font-family: var(--font-ja);
+}
+
+.subtitle-ja[lang="ja"],
+.subtitle-kana[lang="ja"],
+.sentence-note-ja[lang="ja"],
+.sentence-note-kana[lang="ja"],
+.study-reading[lang="ja"],
+.study-example[lang="ja"],
+.grammar-example[lang="ja"],
+.grammar-kana[lang="ja"],
+#lesson-sender[lang="ja"] {
+  font-weight: 400;
+}
+
+.study-term[lang="ja"],
+.grammar-pattern[lang="ja"] {
+  font-weight: 700;
 }
 
 .site-shell {
