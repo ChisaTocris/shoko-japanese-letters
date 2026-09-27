@@ -4,11 +4,14 @@
   --night-850: #111b3a;
   --night-700: #27365f;
   --ink: #1b2742;
-  --ink-soft: #526078;
+  --ink-soft: #5f554b;
   --paper: #f6efdD;
   --paper-light: #fffaf0;
   --paper-deep: #e8ddc5;
-  --paper-reading: #ded8e4;
+  --paper-reading: #ded3c1;
+  --ink-warm: #74513d;
+  --ink-warm-deep: #704d3a;
+  --ink-accent: #77543e;
   --gold: #cba866;
   --gold-bright: #f2d18c;
   --night-text: #e8e2ef;
@@ -667,14 +670,14 @@ a {
 }
 
 .letter-category {
-  color: #a5654e;
+  color: var(--ink-accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.15em;
 }
 
 .letter-date {
-  color: rgba(27, 39, 66, 0.52);
+  color: var(--ink-soft);
   font-size: 12px;
   letter-spacing: 0.08em;
 }
@@ -711,7 +714,7 @@ a {
   justify-content: flex-start;
   gap: 13px;
   margin-top: 36px;
-  color: rgba(27, 39, 66, 0.66);
+  color: var(--ink-soft);
   font-size: 13px;
 }
 
@@ -977,7 +980,7 @@ a {
 
 .text-button {
   padding: 6px 0;
-  color: #97613f;
+  color: var(--ink-warm);
   background: transparent;
   font-size: 13px;
   white-space: nowrap;
@@ -1017,7 +1020,7 @@ a {
   padding: 5px 13px;
   border: 1px solid rgba(200, 108, 100, 0.38);
   border-radius: 999px;
-  color: #a5654e;
+  color: var(--ink-accent);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -1073,12 +1076,12 @@ a {
 
 .sentence-note:hover,
 .sentence-note.is-playing {
-  color: #89553f;
+  color: var(--ink-warm-deep);
   background: rgba(233, 223, 198, 0.32);
 }
 
 .sentence-number {
-  color: #a5654e;
+  color: var(--ink-accent);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1.8;
@@ -1101,14 +1104,14 @@ a {
 .sentence-note-zh {
   display: block;
   margin-top: 5px;
-  color: #7b5a43;
+  color: var(--ink-warm);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .sentence-replay {
   align-self: center;
-  color: #a5654e;
+  color: var(--ink-accent);
   font-size: 17px;
 }
 
@@ -1152,7 +1155,7 @@ a {
 
 .study-meaning {
   margin: 3px 0 0;
-  color: #7b5a43;
+  color: var(--ink-warm);
   font-size: 14px;
 }
 
@@ -1187,14 +1190,14 @@ a {
 }
 
 .grammar-pattern {
-  color: #9a6344;
+  color: var(--ink-accent);
   font-size: 15px;
   font-weight: 700;
 }
 
 .grammar-kana {
   margin: 5px 0 0;
-  color: #9a6344;
+  color: var(--ink-accent);
   font-size: 14px;
 }
 
@@ -1214,7 +1217,7 @@ a {
 
 .grammar-translation {
   margin-top: 3px;
-  color: #7b5a43;
+  color: var(--ink-warm);
 }
 
 .site-footer {
