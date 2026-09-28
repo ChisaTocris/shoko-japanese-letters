@@ -164,24 +164,6 @@ a {
   letter-spacing: 0.08em;
 }
 
-.header-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--night-text-soft);
-  font-size: 13px;
-  line-height: 1.5;
-  text-align: right;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--seal);
-  box-shadow: 0 0 0 4px rgba(200, 108, 100, 0.12);
-}
-
 .mailbox-screen {
   min-height: calc(100vh - 168px);
   padding: clamp(48px, 9vw, 112px) 0 70px;
@@ -203,13 +185,6 @@ a {
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1.18;
-}
-
-.page-identity {
-  margin: 11px 0 0;
-  color: var(--gold-bright);
-  font-size: 12px;
-  letter-spacing: 0.08em;
 }
 
 .intro-copy {
@@ -416,40 +391,6 @@ a {
   line-height: 1;
 }
 
-.privacy-note {
-  display: flex;
-  gap: 11px;
-  max-width: 850px;
-  margin: 42px auto 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-}
-
-.note-seal {
-  display: grid;
-  flex: 0 0 30px;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(200, 108, 100, 0.7);
-  border-radius: 50%;
-  color: var(--seal);
-  font-size: 14px;
-  line-height: 1;
-}
-
-.privacy-note p {
-  margin: 0;
-  color: var(--night-text-muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.privacy-note strong {
-  color: var(--night-text);
-  font-weight: 600;
-}
-
 .empty-state {
   max-width: 850px;
   margin: 52px auto 0;
@@ -609,12 +550,6 @@ a {
   border-color: rgba(242, 209, 140, 0.65);
   color: var(--night-text-strong);
   background: rgba(36, 52, 94, 0.84);
-}
-
-.reader-toolbar-note {
-  color: var(--night-text-muted);
-  font-size: 12px;
-  letter-spacing: 0.06em;
 }
 
 .lesson-view {
@@ -1195,6 +1130,13 @@ a {
   font-weight: 700;
 }
 
+.grammar-formation {
+  margin: 5px 0 0;
+  color: var(--ink-warm);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .grammar-kana {
   margin: 5px 0 0;
   color: var(--ink-accent);
@@ -1247,9 +1189,6 @@ a {
     margin-top: 38px;
   }
 
-  .privacy-note {
-    margin-top: 34px;
-  }
 }
 
 @media (max-width: 560px) {
@@ -1273,13 +1212,6 @@ a {
 
   .brand-name {
     font-size: 16px;
-  }
-
-  .header-note {
-    max-width: 120px;
-    font-size: 11px;
-    line-height: 1.45;
-    text-align: right;
   }
 
   .mailbox-heading {
@@ -1360,10 +1292,6 @@ a {
     flex-direction: column;
     gap: 8px;
     margin-bottom: 11px;
-  }
-
-  .reader-toolbar-note {
-    padding-left: 4px;
   }
 
   .lesson-view {
@@ -1472,11 +1400,6 @@ a {
   }
 }
 
-@media (max-width: 420px) {
-  .header-note {
-    display: none;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   html {

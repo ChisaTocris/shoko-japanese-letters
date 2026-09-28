@@ -17,10 +17,27 @@
     return match ? match[1] + '年' + String(Number(match[2])) + '月' + String(Number(match[3])) + '日' : '';
   }
 
+  function cleanDisplayedSubtitle(subtitle) {
+    var fictionalLabel = '\u865a\u6784';
+    var synthesizedVoiceLabel = 'AI\u5408\u6210\u8bed\u97f3';
+    var original = String(subtitle || '');
+    var hadSynthesizedVoiceLabel = original.indexOf(synthesizedVoiceLabel) !== -1;
+    var cleaned = original
+      .replace(new RegExp('的' + fictionalLabel + '日常来信', 'g'), '的日常来信')
+      .replace(new RegExp(fictionalLabel + '日常来信', 'g'), '日常来信')
+      .replace(new RegExp(fictionalLabel + '日常', 'g'), '日常')
+      .replace(new RegExp(synthesizedVoiceLabel, 'g'), '');
+    if (hadSynthesizedVoiceLabel) {
+      cleaned = cleaned.replace(/\s*[·•]\s*$/, '');
+    }
+    return cleaned.replace(/\s{2,}/g, ' ').trim();
+  }
+
   function normalizeLesson(lesson) {
     var normalized = Object.assign({}, lesson);
     normalized.publishedDate = inferPublishedDate(lesson);
     normalized.date = String(normalized.date || formatDateLabel(normalized.publishedDate) || '未标日期');
+    normalized.subtitle = cleanDisplayedSubtitle(normalized.subtitle);
     normalized.duration = Number(normalized.duration);
     normalized.sentences = Array.isArray(normalized.sentences) ? normalized.sentences : [];
     normalized.vocabulary = Array.isArray(normalized.vocabulary) ? normalized.vocabulary : [];
@@ -136,6 +153,111 @@
     }
     node.textContent = text == null ? '' : text;
     return node;
+  }
+
+  function grammarTitle(suffix) {
+    var value = String(suffix || '').trim();
+    if (!value) {
+      return '语法';
+    }
+    if (value === 'り、动词た形＋りする') {
+      return '～たり～たりする';
+    }
+    if (value === 'んだ／んです') {
+      return '～んだ／～んです';
+    }
+    if (value === 'にくい／やすい') {
+      return '～にくい／～やすい';
+    }
+    if (value === 'そうだ') {
+      return '～そうだ';
+    }
+    return '～' + value.replaceAll('＋名词', '＋N');
+  }
+
+  function isMixedGrammarTitle(title) {
+    return /动词|名词|普通形|引用内容|形容词|状态表达|话题提示|传闻|样态|口语缩约/.test(String(title || ''));
+  }
+
+  function formatGrammarPattern(pattern) {
+    var raw = String(pattern == null ? '' : pattern).trim();
+    var exact = {
+      '～しか＋否定形式': { title: '～しか～ない', connection: '～しか＋否定形式' },
+      '～てしまう → ～ちゃう': { title: '～てしまう → ～ちゃう', connection: '口语缩约：～てしまう → ～ちゃう' },
+      '～てしまった → ～ちゃった': { title: '～てしまった → ～ちゃった', connection: '口语缩约：～てしまった → ～ちゃった' },
+      '～なきゃ（いけない／ならない）': { title: '～なきゃ（いけない／ならない）', connection: '口语缩约：～なければ（いけない／ならない）→～なきゃ（いけない／ならない）' },
+      '～もあれば、～もある': { title: '～もあれば、～もある', connection: '～もあれば、～もある' },
+      '动词意志形＋と思う': { title: '～ようと思う', connection: '动词意志形＋と思う' },
+      '动词意志形＋とする': { title: '～ようとする', connection: '动词意志形＋とする' },
+      '动词可能形＋ない': { title: '～ない（可能形）', connection: '动词可能形＋ない' },
+      '普通形＋そうだ（传闻）': { title: '～そうだ（传闻）', connection: '普通形＋そうだ' },
+      '名词＋って（话题提示）': { title: '～って（话题提示）', connection: '名词＋って（话题提示）' },
+      '引用内容＋って': { title: '～って（引用）', connection: '引用内容＋って' }
+    };
+    if (Object.prototype.hasOwnProperty.call(exact, raw)) {
+      return Object.assign({ titleLang: !isMixedGrammarTitle(exact[raw].title) }, exact[raw]);
+    }
+
+    var match = raw.match(/^动词ます形去ます[＋+](.+)$/);
+    if (match) {
+      var masuSuffix = match[1];
+      var masuTitle = grammarTitle(masuSuffix);
+      if (masuSuffix === 'そうだ') {
+        masuTitle = '～そうだ（样态）';
+      }
+      return {
+        title: masuTitle,
+        titleLang: !isMixedGrammarTitle(masuTitle),
+        connection: '动词ます形去掉「ます」＋' + masuSuffix
+      };
+    }
+
+    match = raw.match(/^动词ない形去ない[＋+](.+)$/);
+    if (match) {
+      return {
+        title: grammarTitle(match[1]),
+        titleLang: !isMixedGrammarTitle(grammarTitle(match[1])),
+        connection: '动词ない形去掉「ない」＋' + match[1]
+      };
+    }
+
+    match = raw.match(/^(动词(?:て|た|辞书|可能|ない)形(?:／[^＋+]+形)?|普通形|名词|引用内容|い形容词／状态表达)[＋+](.+)$/);
+    if (match) {
+      var suffix = match[2];
+      var title = grammarTitle(suffix);
+      if (match[1].indexOf('て形') !== -1) {
+        title = '～て' + suffix;
+      } else if (match[1].indexOf('た形') !== -1 && suffix === 'ら＋うれしい') {
+        title = '～たらうれしい';
+      } else if (match[1].indexOf('た形') !== -1 && suffix.indexOf('り、动词た形') !== 0) {
+        title = '～た' + suffix;
+      } else if (match[1].indexOf('动词ない形') === 0) {
+        title = '～ない' + suffix;
+      }
+      return {
+        title: title,
+        titleLang: !isMixedGrammarTitle(title),
+        connection: raw
+      };
+    }
+
+    var fallback = raw.match(/^(.+?)[＋+](.+)$/);
+    if (fallback && /动词|名词|普通形|引用内容|形容词|状态表达/.test(fallback[1])) {
+      var fallbackTitle = grammarTitle(fallback[2]);
+      return {
+        title: fallbackTitle,
+        titleLang: !isMixedGrammarTitle(fallbackTitle),
+        connection: raw
+          .replace('去ます', '去掉「ます」')
+          .replace('去ない', '去掉「ない」')
+      };
+    }
+
+    return {
+      title: raw || '语法',
+      titleLang: Boolean(raw) && !isMixedGrammarTitle(raw),
+      connection: raw || '请参考这条语法的例句'
+    };
   }
 
   function formatTime(seconds) {
@@ -288,7 +410,9 @@
     lesson.grammar.forEach(function (item) {
       var article = document.createElement('article');
       article.className = 'grammar-item';
-      article.appendChild(textNode('div', 'grammar-pattern', item.pattern, 'ja'));
+      var formatted = formatGrammarPattern(item.pattern);
+      article.appendChild(textNode('div', 'grammar-pattern', formatted.title, formatted.titleLang ? 'ja' : undefined));
+      article.appendChild(textNode('p', 'grammar-formation', '接续：' + formatted.connection));
       article.appendChild(textNode('p', 'grammar-meaning', item.meaning));
       article.appendChild(textNode('p', 'grammar-example', item.example, 'ja'));
       if (item.kana) {
